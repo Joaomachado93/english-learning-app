@@ -1,6 +1,0 @@
-authorityKeyIdentifier=keyid,issuer
-basicConstraints=CA:FALSE
-subjectAltName = @alt_names
-[alt_names]
-IP.1 = 192.168.1.219
-IP.2 = 127.0.0.1
