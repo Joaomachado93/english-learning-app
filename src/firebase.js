@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth'
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
 import { ref, shallowRef } from 'vue'
 
@@ -29,17 +29,30 @@ onAuthStateChanged(auth, (user) => {
   isAuthReady.value = true
 })
 
-// Sign in with Google
+// Check for redirect result on page load
+getRedirectResult(auth).then((result) => {
+  if (result?.user) {
+    isLoading.value = false
+  }
+}).catch(() => {
+  isLoading.value = false
+})
+
+// Sign in with Google - try popup first, fallback to redirect (for iOS Safari)
 async function loginWithGoogle() {
   isLoading.value = true
   try {
     const result = await signInWithPopup(auth, googleProvider)
     return result.user
   } catch (error) {
-    console.error('Login error:', error)
-    throw error
-  } finally {
-    isLoading.value = false
+    if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+      // Fallback to redirect for mobile browsers
+      await signInWithRedirect(auth, googleProvider)
+    } else {
+      console.error('Login error:', error)
+      isLoading.value = false
+      throw error
+    }
   }
 }
 
