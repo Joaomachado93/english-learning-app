@@ -21,27 +21,27 @@ const googleProvider = new GoogleAuthProvider()
 // Reactive user state
 const currentUser = shallowRef(null)
 const isAuthReady = ref(false)
-const isLoading = ref(false)
+const isLoading = ref(true)
 
 // Detect mobile/iOS
 function isMobile() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 }
 
-// Listen for auth state changes
-onAuthStateChanged(auth, (user) => {
-  currentUser.value = user
-  isAuthReady.value = true
-  isLoading.value = false
-})
-
-// Check for redirect result on page load (mobile flow)
+// First: check for redirect result (returns from Google login on mobile)
 getRedirectResult(auth).then((result) => {
   if (result?.user) {
-    isLoading.value = false
+    currentUser.value = result.user
   }
-}).catch(() => {
-  isLoading.value = false
+}).catch((err) => {
+  console.error('Redirect error:', err)
+}).finally(() => {
+  // Then: listen for auth state (covers both redirect and existing session)
+  onAuthStateChanged(auth, (user) => {
+    currentUser.value = user
+    isAuthReady.value = true
+    isLoading.value = false
+  })
 })
 
 // Sign in with Google
