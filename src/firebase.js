@@ -1,5 +1,15 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth'
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut,
+  onAuthStateChanged,
+  browserLocalPersistence,
+  setPersistence
+} from 'firebase/auth'
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
 import { ref, shallowRef } from 'vue'
 
@@ -15,28 +25,16 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 const auth = getAuth(app)
+setPersistence(auth, browserLocalPersistence)
 const db = getFirestore(app)
 const googleProvider = new GoogleAuthProvider()
 
-// Reactive user state
 const currentUser = shallowRef(null)
 const isAuthReady = ref(false)
 const isLoading = ref(true)
 
-// Detect mobile/iOS
-function isMobile() {
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-}
-
-// First: check for redirect result (returns from Google login on mobile)
-getRedirectResult(auth).then((result) => {
-  if (result?.user) {
-    currentUser.value = result.user
-  }
-}).catch((err) => {
-  console.error('Redirect error:', err)
-}).finally(() => {
-  // Then: listen for auth state (covers both redirect and existing session)
+// Handle redirect result first (for when user returns from Google)
+getRedirectResult(auth).catch(() => {}).finally(() => {
   onAuthStateChanged(auth, (user) => {
     currentUser.value = user
     isAuthReady.value = true
@@ -44,23 +42,26 @@ getRedirectResult(auth).then((result) => {
   })
 })
 
-// Sign in with Google
+// Sign in with Google - always try popup first
 async function loginWithGoogle() {
   isLoading.value = true
-
-  // Mobile: always use redirect (popups are blocked on iOS Safari)
-  if (isMobile()) {
-    await signInWithRedirect(auth, googleProvider)
-    return
-  }
-
-  // Desktop: use popup
   try {
     const result = await signInWithPopup(auth, googleProvider)
     return result.user
   } catch (error) {
-    if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-      await signInWithRedirect(auth, googleProvider)
+    // If popup fails (blocked, cancelled on iOS), try redirect
+    if (
+      error.code === 'auth/popup-blocked' ||
+      error.code === 'auth/popup-closed-by-user' ||
+      error.code === 'auth/cancelled-popup-request'
+    ) {
+      try {
+        await signInWithRedirect(auth, googleProvider)
+      } catch (redirectError) {
+        console.error('Redirect error:', redirectError)
+        isLoading.value = false
+        throw redirectError
+      }
     } else {
       console.error('Login error:', error)
       isLoading.value = false
@@ -69,31 +70,36 @@ async function loginWithGoogle() {
   }
 }
 
-// Sign out
 async function logout() {
   await signOut(auth)
 }
 
-// Save progress to Firestore
 async function saveProgressToCloud(progressData) {
   if (!currentUser.value) return
-  const userDoc = doc(db, 'users', currentUser.value.uid)
-  await setDoc(userDoc, {
-    email: currentUser.value.email,
-    displayName: currentUser.value.displayName,
-    photoURL: currentUser.value.photoURL,
-    progress: progressData,
-    lastUpdated: new Date().toISOString()
-  }, { merge: true })
+  try {
+    const userDoc = doc(db, 'users', currentUser.value.uid)
+    await setDoc(userDoc, {
+      email: currentUser.value.email,
+      displayName: currentUser.value.displayName,
+      photoURL: currentUser.value.photoURL,
+      progress: progressData,
+      lastUpdated: new Date().toISOString()
+    }, { merge: true })
+  } catch (err) {
+    console.error('Cloud save error:', err)
+  }
 }
 
-// Load progress from Firestore
 async function loadProgressFromCloud() {
   if (!currentUser.value) return null
-  const userDoc = doc(db, 'users', currentUser.value.uid)
-  const snapshot = await getDoc(userDoc)
-  if (snapshot.exists()) {
-    return snapshot.data().progress || null
+  try {
+    const userDoc = doc(db, 'users', currentUser.value.uid)
+    const snapshot = await getDoc(userDoc)
+    if (snapshot.exists()) {
+      return snapshot.data().progress || null
+    }
+  } catch (err) {
+    console.error('Cloud load error:', err)
   }
   return null
 }

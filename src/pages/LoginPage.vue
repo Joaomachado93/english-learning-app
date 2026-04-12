@@ -1,21 +1,32 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { loginWithGoogle, isLoading } from '../firebase.js'
+import { loginWithGoogle, isLoading, currentUser } from '../firebase.js'
 
 const router = useRouter()
 const error = ref('')
 
+// Watch for user login (covers redirect flow)
+watch(currentUser, (user) => {
+  if (user) {
+    router.push('/')
+  }
+}, { immediate: true })
+
 async function handleLogin() {
   error.value = ''
   try {
-    await loginWithGoogle()
-    router.push('/')
+    const user = await loginWithGoogle()
+    // Popup flow returns user directly
+    if (user) {
+      router.push('/')
+    }
+    // Redirect flow: page reloads, watch above handles it
   } catch (err) {
-    if (err.code === 'auth/popup-closed-by-user') {
-      error.value = 'Login cancelled'
+    if (err?.code === 'auth/popup-closed-by-user') {
+      error.value = 'Login cancelled. Try again.'
     } else {
-      error.value = 'Login failed. Please try again.'
+      error.value = err?.message || 'Login failed. Please try again.'
     }
   }
 }
