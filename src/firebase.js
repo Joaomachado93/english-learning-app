@@ -23,13 +23,19 @@ const currentUser = shallowRef(null)
 const isAuthReady = ref(false)
 const isLoading = ref(false)
 
+// Detect mobile/iOS
+function isMobile() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+}
+
 // Listen for auth state changes
 onAuthStateChanged(auth, (user) => {
   currentUser.value = user
   isAuthReady.value = true
+  isLoading.value = false
 })
 
-// Check for redirect result on page load
+// Check for redirect result on page load (mobile flow)
 getRedirectResult(auth).then((result) => {
   if (result?.user) {
     isLoading.value = false
@@ -38,15 +44,22 @@ getRedirectResult(auth).then((result) => {
   isLoading.value = false
 })
 
-// Sign in with Google - try popup first, fallback to redirect (for iOS Safari)
+// Sign in with Google
 async function loginWithGoogle() {
   isLoading.value = true
+
+  // Mobile: always use redirect (popups are blocked on iOS Safari)
+  if (isMobile()) {
+    await signInWithRedirect(auth, googleProvider)
+    return
+  }
+
+  // Desktop: use popup
   try {
     const result = await signInWithPopup(auth, googleProvider)
     return result.user
   } catch (error) {
     if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-      // Fallback to redirect for mobile browsers
       await signInWithRedirect(auth, googleProvider)
     } else {
       console.error('Login error:', error)
