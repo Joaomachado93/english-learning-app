@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { findLesson } from '../data/courses.js'
 import { useProgress } from '../composables/useProgress.js'
+import { useLessonAds } from '../composables/useLessonAds.js'
 import MultipleChoice from '../components/exercises/MultipleChoice.vue'
 import FillBlank from '../components/exercises/FillBlank.vue'
 import Matching from '../components/exercises/Matching.vue'
@@ -15,6 +16,7 @@ import Pronunciation from '../components/exercises/Pronunciation.vue'
 const route = useRoute()
 const router = useRouter()
 const { completeLesson } = useProgress()
+const { recordLessonComplete } = useLessonAds()
 
 const data = computed(() => findLesson(route.params.lessonId))
 const lesson = computed(() => data.value?.lesson)
@@ -34,13 +36,14 @@ function onAnswer(isCorrect) {
   answers.value.push(isCorrect)
 }
 
-function nextExercise() {
+async function nextExercise() {
   if (currentIndex.value < exercises.value.length - 1) {
     currentIndex.value++
   } else {
     // Lesson complete
     isFinished.value = true
     xpGained.value = completeLesson(lesson.value.id, score.value, exercises.value.length)
+    await recordLessonComplete()
   }
 }
 

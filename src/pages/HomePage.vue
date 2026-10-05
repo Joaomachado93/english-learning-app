@@ -1,11 +1,16 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { courses, getCourseStats } from '../data/courses.js'
 import { useProgress } from '../composables/useProgress.js'
 import { useDailyChallenge } from '../composables/useDailyChallenge.js'
+import { useAds } from '../ads/adManager.js'
 
 const { streak, totalXP, totalLessonsCompleted, getCourseProgress } = useProgress()
 const { dailyLesson, dailyWord } = useDailyChallenge()
+const { showBanner, hideBanner } = useAds()
+
+onMounted(() => { showBanner() })
+onUnmounted(() => { hideBanner() })
 
 const coursesWithProgress = computed(() =>
   courses.map(course => ({

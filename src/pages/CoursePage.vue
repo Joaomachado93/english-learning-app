@@ -1,12 +1,17 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { courses } from '../data/courses.js'
 import { useProgress } from '../composables/useProgress.js'
+import { useAds } from '../ads/adManager.js'
 
 const route = useRoute()
 const router = useRouter()
 const { getCourseProgress, isLessonCompleted } = useProgress()
+const { showBanner, hideBanner } = useAds()
+
+onMounted(() => { showBanner() })
+onUnmounted(() => { hideBanner() })
 
 const course = computed(() => courses.find(c => c.id === route.params.courseId))
 const progress = computed(() => course.value ? getCourseProgress(course.value.modules) : null)

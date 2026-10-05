@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">English Practice</string>
+    <string name="title_activity_main">English Practice</string>
+    <string name="package_name">com.joao.englishpractice</string>
+    <string name="custom_url_scheme">com.joao.englishpractice</string>
+</resources>

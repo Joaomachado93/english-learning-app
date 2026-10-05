@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth'
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
 import { ref, shallowRef } from 'vue'
+import { isAndroid } from './platform/isAndroid.js'
 
 const firebaseConfig = {
   apiKey: "AIzaSyCWmxykGWteQsaTumy7vtOowhT7RDH3G8k",
@@ -23,33 +24,42 @@ const firebaseConfig = {
   measurementId: "G-SNNMGQB9XX"
 }
 
-const app = initializeApp(firebaseConfig)
-const auth = getAuth(app)
-setPersistence(auth, browserLocalPersistence)
-const db = getFirestore(app)
-const googleProvider = new GoogleAuthProvider()
-
 const currentUser = shallowRef(null)
 const isAuthReady = ref(false)
 const isLoading = ref(true)
 
-// Handle redirect result first (for when user returns from Google)
-getRedirectResult(auth).catch(() => {}).finally(() => {
-  onAuthStateChanged(auth, (user) => {
-    currentUser.value = user
-    isAuthReady.value = true
-    isLoading.value = false
-  })
-})
+let auth = null
+let db = null
+let googleProvider = null
 
-// Sign in with Google - always try popup first
+if (!isAndroid) {
+  const app = initializeApp(firebaseConfig)
+  auth = getAuth(app)
+  setPersistence(auth, browserLocalPersistence)
+  db = getFirestore(app)
+  googleProvider = new GoogleAuthProvider()
+
+  getRedirectResult(auth).catch(() => {}).finally(() => {
+    onAuthStateChanged(auth, (user) => {
+      currentUser.value = user
+      isAuthReady.value = true
+      isLoading.value = false
+    })
+  })
+} else {
+  // Android: no Firebase, no login. Mark auth as ready immediately so App.vue
+  // exits the loading state and proceeds to HomePage.
+  isAuthReady.value = true
+  isLoading.value = false
+}
+
 async function loginWithGoogle() {
+  if (isAndroid) return null
   isLoading.value = true
   try {
     const result = await signInWithPopup(auth, googleProvider)
     return result.user
   } catch (error) {
-    // If popup fails (blocked, cancelled on iOS), try redirect
     if (
       error.code === 'auth/popup-blocked' ||
       error.code === 'auth/popup-closed-by-user' ||
@@ -71,11 +81,12 @@ async function loginWithGoogle() {
 }
 
 async function logout() {
+  if (isAndroid) return
   await signOut(auth)
 }
 
 async function saveProgressToCloud(progressData) {
-  if (!currentUser.value) return
+  if (isAndroid || !currentUser.value) return
   try {
     const userDoc = doc(db, 'users', currentUser.value.uid)
     await setDoc(userDoc, {
@@ -91,7 +102,7 @@ async function saveProgressToCloud(progressData) {
 }
 
 async function loadProgressFromCloud() {
-  if (!currentUser.value) return null
+  if (isAndroid || !currentUser.value) return null
   try {
     const userDoc = doc(db, 'users', currentUser.value.uid)
     const snapshot = await getDoc(userDoc)

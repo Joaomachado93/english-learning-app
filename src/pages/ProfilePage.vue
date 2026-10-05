@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useProgress } from '../composables/useProgress.js'
 import { courses } from '../data/courses.js'
 import { currentUser, logout, loginWithGoogle } from '../firebase.js'
+import { isAndroid } from '../platform/isAndroid.js'
 
 const router = useRouter()
 const { streak, totalXP, totalLessonsCompleted, getCourseProgress, resetProgress, lessons } = useProgress()
@@ -56,7 +57,22 @@ function confirmReset() {
 
     <!-- User Account -->
     <div class="px-5 mb-6">
-      <div class="card" v-if="currentUser">
+      <!-- Android: progress is local-only, no login -->
+      <div class="card" v-if="isAndroid">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-semibold">Progress saved on this device</p>
+            <p class="text-xs text-dark-400 mt-0.5">Your XP, streak and completed lessons are kept locally — no account needed.</p>
+          </div>
+        </div>
+      </div>
+      <!-- iOS / web: existing Google sign-in flow -->
+      <div class="card" v-else-if="currentUser">
         <div class="flex items-center gap-4">
           <img
             :src="currentUser.photoURL"

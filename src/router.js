@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { isAndroid } from './platform/isAndroid.js'
 
 const routes = [
   {
@@ -36,6 +37,12 @@ const routes = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes
+})
+
+router.beforeEach((to) => {
+  if (isAndroid && to.name === 'Login') {
+    return { name: 'Home' }
+  }
 })
 
 export default router
