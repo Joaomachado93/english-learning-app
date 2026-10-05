@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { currentUser, isAuthReady } from './firebase.js'
+import { currentUser, isAuthReady, isGuest } from './firebase.js'
 import { isAndroid } from './platform/isAndroid.js'
 import BottomNav from './components/BottomNav.vue'
 
@@ -11,10 +11,11 @@ const direction = ref('slide-left')
 
 const showNav = computed(() => route.name !== 'Lesson' && route.name !== 'Login')
 
-// Redirect to login if not authenticated (iOS/web only — Android has no login)
-watch([isAuthReady, () => route.name], ([ready, name]) => {
+// Redirect to login if not authenticated, unless the person chose to continue without an account
+// (iOS/web only — Android has no login)
+watch([isAuthReady, () => route.name, currentUser, isGuest], ([ready, name]) => {
   if (isAndroid) return
-  if (ready && !currentUser.value && name !== 'Login') {
+  if (ready && !currentUser.value && !isGuest.value && name !== 'Login') {
     router.push('/login')
   }
 })

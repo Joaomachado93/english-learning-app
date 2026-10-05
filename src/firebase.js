@@ -28,6 +28,34 @@ const currentUser = shallowRef(null)
 const isAuthReady = ref(false)
 const isLoading = ref(true)
 
+// Guest mode: lets people use the app without an account ("Continue without account").
+// Progress is still saved on the device; signing in later syncs it to the cloud.
+const GUEST_KEY = 'english-app-guest'
+
+function readGuestFlag() {
+  try {
+    return localStorage.getItem(GUEST_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+const isGuest = ref(readGuestFlag())
+
+function setGuest(value) {
+  isGuest.value = value
+  try {
+    if (value) localStorage.setItem(GUEST_KEY, '1')
+    else localStorage.removeItem(GUEST_KEY)
+  } catch {
+    // Storage unavailable: the in-memory flag still works for this session.
+  }
+}
+
+function continueAsGuest() {
+  setGuest(true)
+}
+
 let auth = null
 let db = null
 let googleProvider = null
@@ -83,6 +111,8 @@ async function loginWithGoogle() {
 async function logout() {
   if (isAndroid) return
   await signOut(auth)
+  // Back to the login screen, where the person can sign in again or continue as a guest.
+  setGuest(false)
 }
 
 async function saveProgressToCloud(progressData) {
@@ -119,6 +149,8 @@ export {
   currentUser,
   isAuthReady,
   isLoading,
+  isGuest,
+  continueAsGuest,
   loginWithGoogle,
   logout,
   saveProgressToCloud,

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { loginWithGoogle, isLoading, currentUser } from '../firebase.js'
+import { loginWithGoogle, isLoading, currentUser, continueAsGuest } from '../firebase.js'
 
 const router = useRouter()
 const error = ref('')
@@ -12,6 +12,11 @@ watch(currentUser, (user) => {
     router.push('/')
   }
 }, { immediate: true })
+
+function skipLogin() {
+  continueAsGuest()
+  router.push('/')
+}
 
 async function handleLogin() {
   error.value = ''
@@ -86,7 +91,7 @@ async function handleLogin() {
 
     <!-- Skip -->
     <button
-      @click="router.push('/')"
+      @click="skipLogin"
       class="mt-4 text-sm text-dark-500 underline"
     >
       Continue without account
