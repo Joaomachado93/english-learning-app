@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { sameWordOrder } from '../../utils/answers.js'
 
 const props = defineProps({
   exercise: { type: Object, required: true }
@@ -29,7 +30,9 @@ function removeWord(posIndex) {
 function checkAnswer() {
   answered.value = true
   const userSentence = selectedWords.value.map(i => shuffledWords.value[i]).join(' ')
-  isCorrect.value = userSentence === props.exercise.correct
+  // Only the order of the words is checked: tiles such as "?" or a missing capital
+  // letter used to make the right answer impossible to give.
+  isCorrect.value = sameWordOrder(userSentence, props.exercise.correct)
   emit('answer', isCorrect.value)
 }
 

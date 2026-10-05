@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { sameAnswer } from '../../utils/answers.js'
 
 const props = defineProps({
   exercise: { type: Object, required: true }
@@ -12,24 +13,15 @@ const answered = ref(false)
 const isCorrect = ref(false)
 const showHint = ref(false)
 
-function normalize(str) {
-  return str.trim().toLowerCase()
-    .replace(/['']/g, "'")
-    .replace(/[""]/g, '"')
-    .replace(/\s+/g, ' ')
-    .replace(/[.,!?;:]+$/, '')
-}
-
 function checkAnswer() {
   if (!userInput.value.trim() || answered.value) return
   answered.value = true
 
-  const userNorm = normalize(userInput.value)
   const acceptedAnswers = Array.isArray(props.exercise.answer)
     ? props.exercise.answer
     : [props.exercise.answer]
 
-  isCorrect.value = acceptedAnswers.some(a => normalize(a) === userNorm)
+  isCorrect.value = acceptedAnswers.some(a => sameAnswer(userInput.value, a))
   emit('answer', isCorrect.value)
 }
 
@@ -72,6 +64,8 @@ const toLang = props.exercise.to || 'EN'
         type="text"
         autocapitalize="off"
         autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
         :placeholder="showHint ? exercise.hint : `Type the translation in ${toLang === 'EN' ? 'English' : 'Portuguese'}...`"
         class="w-full bg-dark-800 border-2 border-dark-600 rounded-2xl px-4 py-3 text-white
                focus:border-primary-500 focus:outline-none transition-colors

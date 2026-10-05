@@ -12,14 +12,17 @@ const shuffledRight = ref(
   [...props.exercise.pairs.map(p => p.right)].sort(() => Math.random() - 0.5)
 )
 
+// Right-hand items are tracked by position, not by text: several items can share
+// the same answer (two sentences that are both "Present Simple"), and tracking by
+// text disabled every copy after the first match, leaving the exercise unfinishable.
 const selectedLeft = ref(null)
-const selectedRight = ref(null)
-const matches = ref({}) // leftIndex -> rightValue
+const selectedRight = ref(null) // index into shuffledRight
+const matches = ref({}) // leftIndex -> index into shuffledRight
 const answered = ref(false)
 const isCorrect = ref(false)
 
 const matchedLeftIndices = computed(() => new Set(Object.keys(matches.value).map(Number)))
-const matchedRightValues = computed(() => new Set(Object.values(matches.value)))
+const matchedRightIndices = computed(() => new Set(Object.values(matches.value)))
 
 function selectLeft(index) {
   if (answered.value || matchedLeftIndices.value.has(index)) return
@@ -27,10 +30,17 @@ function selectLeft(index) {
   tryMatch()
 }
 
-function selectRight(value) {
-  if (answered.value || matchedRightValues.value.has(value)) return
-  selectedRight.value = value
+function selectRight(index) {
+  if (answered.value || matchedRightIndices.value.has(index)) return
+  selectedRight.value = index
   tryMatch()
+}
+
+// A match is right when the exercise has a pair with this left text and this right text.
+function isPairCorrect(leftIdx, rightIdx) {
+  const left = props.exercise.pairs[leftIdx].left
+  const right = shuffledRight.value[rightIdx]
+  return props.exercise.pairs.some(p => p.left === left && p.right === right)
 }
 
 function tryMatch() {
@@ -48,25 +58,18 @@ function tryMatch() {
 
 function checkAnswer() {
   answered.value = true
-  let correct = true
-  for (const [leftIdx, rightVal] of Object.entries(matches.value)) {
-    if (props.exercise.pairs[leftIdx].right !== rightVal) {
-      correct = false
-      break
-    }
-  }
-  isCorrect.value = correct
+  isCorrect.value = Object.entries(matches.value)
+    .every(([leftIdx, rightIdx]) => isPairCorrect(Number(leftIdx), rightIdx))
   emit('answer', isCorrect.value)
 }
 
 function isMatchCorrect(leftIdx) {
   if (!answered.value) return null
-  return props.exercise.pairs[leftIdx].right === matches.value[leftIdx]
+  return isPairCorrect(leftIdx, matches.value[leftIdx])
 }
 
 function removeMatch(leftIdx) {
   if (answered.value) return
-  const rightVal = matches.value[leftIdx]
   delete matches.value[leftIdx]
 }
 </script>
@@ -100,14 +103,14 @@ function removeMatch(leftIdx) {
         <button
           v-for="(value, index) in shuffledRight"
           :key="'r-' + index"
-          @click="selectRight(value)"
+          @click="selectRight(index)"
           class="w-full text-left p-3 rounded-xl text-sm transition-all border-2"
           :class="[
-            selectedRight === value ? 'border-primary-500 bg-primary-500/10' :
-            matchedRightValues.has(value) ? 'border-dark-600/50 bg-dark-800/50 opacity-50' :
+            selectedRight === index ? 'border-primary-500 bg-primary-500/10' :
+            matchedRightIndices.has(index) ? 'border-dark-600/50 bg-dark-800/50 opacity-50' :
             'border-dark-600 bg-dark-800'
           ]"
-          :disabled="matchedRightValues.has(value)"
+          :disabled="matchedRightIndices.has(index)"
         >
           {{ value }}
         </button>

@@ -604,10 +604,10 @@ export const megaB1Modules = [
               'We use no article (zero article) with abstract nouns used in a general sense. "Love" here means love in general, not a specific love.',
           },
           {
-            type: 'fill-blank',
+            type: 'multiple-choice',
             question: 'I go to ___ work by bus every day.',
-            answer: '',
-            hint: 'No article is needed here.',
+            options: ['a', 'the', 'an', 'no article'],
+            correct: 3,
             explanation:
               'We use no article with "go to work", "go to school", "go to bed", "go to church" when talking about the normal purpose of these places.',
           },

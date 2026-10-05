@@ -795,7 +795,7 @@ const baseCourses = [
               {
                 type: 'multiple-choice',
                 question: 'How do you form the past of "study"?',
-                options: ['studyed', 'studied', 'studyed', 'studed'],
+                options: ['studyed', 'studied', 'studyied', 'studed'],
                 correct: 1,
                 explanation: 'Verbs ending in consonant + y: change y to i, add -ed. Study → studied.'
               },

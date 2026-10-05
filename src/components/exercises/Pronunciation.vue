@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { checkSpeechAvailable, createSpeechRecognizer, requestSpeechPermission } from '../../composables/useSpeechRecognition.js'
+import { normalizeSpeech as normalize } from '../../utils/answers.js'
 
 const props = defineProps({
   exercise: { type: Object, required: true }
@@ -75,14 +76,6 @@ onMounted(async () => {
 onUnmounted(() => {
   if (recognition) recognition.abort()
 })
-
-function normalize(str) {
-  return str.toLowerCase()
-    .replace(/['']/g, "'")
-    .replace(/[.,!?;:\-"]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
 
 function calculateScore(spoken, target) {
   const spokenWords = normalize(spoken).split(' ')
@@ -279,8 +272,8 @@ const canRetry = computed(() => answered.value && score.value < 100 && attempts.
 
     <!-- Not supported fallback -->
     <div v-if="!isSupported" class="card border-amber-500/20 mb-4">
-      <p class="text-sm text-amber-400 mb-2">Speech recognition is not available in this browser.</p>
-      <p class="text-sm text-dark-400">Try using Chrome or Safari on iOS. In the meantime, practice saying the sentence out loud and listen to the model pronunciation.</p>
+      <p class="text-sm text-amber-400 mb-2">Speech recognition is not available on this device.</p>
+      <p class="text-sm text-dark-400">Practice saying the sentence out loud and listen to the model pronunciation.</p>
       <button @click="emit('answer', true); emit('next')" class="btn-primary w-full mt-3 text-sm">
         I practiced - Continue
       </button>

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { sameAnswer, splitBlankAnswers } from '../../utils/answers.js'
 
 const props = defineProps({
   exercise: { type: Object, required: true }
@@ -7,62 +8,101 @@ const props = defineProps({
 
 const emit = defineEmits(['answer', 'next'])
 
-const userInput = ref('')
+const BLANK = '___'
+
+// The sentence cut at every blank: "___ they playing? No, they ___." -> ['', ' they playing? No, they ', '.']
+const segments = computed(() => props.exercise.question.split(BLANK))
+
+// One expected answer per blank. An answer such as "Are, aren't" fills two blanks;
+// anything that doesn't line up with the number of blanks is a single answer.
+const expected = computed(() => splitBlankAnswers(props.exercise.answer, segments.value.length - 1))
+const isMulti = computed(() => expected.value.length > 1)
+
+// Text shown around the blanks. With a single answer only the first blank is an
+// input and any other "___" in the sentence stays as written.
+const displayParts = computed(() =>
+  isMulti.value ? segments.value : [segments.value[0], segments.value.slice(1).join(BLANK)]
+)
+
+const inputs = ref(expected.value.map(() => ''))
+const inputEls = ref([])
 const answered = ref(false)
 const isCorrect = ref(false)
 const showHint = ref(false)
 
+const canCheck = computed(() => inputs.value.every(value => value.trim()))
+
+function isBlankCorrect(index) {
+  return sameAnswer(inputs.value[index], expected.value[index])
+}
+
 function checkAnswer() {
-  if (!userInput.value.trim() || answered.value) return
+  if (!canCheck.value || answered.value) return
   answered.value = true
-  isCorrect.value = userInput.value.trim().toLowerCase() === props.exercise.answer.toLowerCase()
+  isCorrect.value = expected.value.every((_, index) => isBlankCorrect(index))
   emit('answer', isCorrect.value)
 }
 
-function handleKeydown(e) {
-  if (e.key === 'Enter') {
-    if (answered.value) {
-      emit('next')
-    } else {
-      checkAnswer()
-    }
+function handleKeydown(e, index) {
+  if (e.key !== 'Enter') return
+  if (answered.value) {
+    emit('next')
+  } else if (canCheck.value) {
+    checkAnswer()
+  } else {
+    // Jump to the next blank that is still empty
+    const next = inputs.value.findIndex((value, i) => i !== index && !value.trim())
+    inputEls.value[next]?.focus()
   }
 }
 
-// Build display sentence with blank
-const parts = computed(() => {
-  const q = props.exercise.question
-  const idx = q.indexOf('___')
-  if (idx === -1) return { before: q, after: '' }
-  return { before: q.substring(0, idx), after: q.substring(idx + 3) }
-})
+function blankText(index) {
+  if (!answered.value) return inputs.value[index] || '...'
+  return isBlankCorrect(index) ? inputs.value[index] : expected.value[index]
+}
+
+function blankClass(index) {
+  if (!answered.value) return 'border-primary-400 text-primary-300'
+  return isBlankCorrect(index) ? 'border-emerald-400 text-emerald-400' : 'border-red-400 text-red-400'
+}
+
+function placeholder(index) {
+  if (isMulti.value) return `Blank ${index + 1}`
+  return showHint.value ? props.exercise.hint : 'Type your answer...'
+}
 </script>
 
 <template>
   <div>
-    <!-- Question with blank -->
+    <!-- Question with blank(s) -->
     <div class="text-xl font-bold mb-6 leading-relaxed">
-      <span>{{ parts.before }}</span>
-      <span
-        class="inline-block min-w-[80px] border-b-2 mx-1 px-1 text-center"
-        :class="!answered ? 'border-primary-400 text-primary-300' :
-                isCorrect ? 'border-emerald-400 text-emerald-400' : 'border-red-400 text-red-400'"
-      >
-        {{ answered ? (isCorrect ? userInput : exercise.answer) : userInput || '...' }}
-      </span>
-      <span>{{ parts.after }}</span>
+      <template v-for="(part, index) in displayParts" :key="index">
+        <span>{{ part }}</span>
+        <span
+          v-if="index < displayParts.length - 1"
+          class="inline-block min-w-[80px] border-b-2 mx-1 px-1 text-center"
+          :class="blankClass(index)"
+        >
+          {{ blankText(index) }}
+        </span>
+      </template>
     </div>
 
-    <!-- Input -->
-    <div class="mb-4">
+    <!-- Input(s): one per blank -->
+    <div class="mb-4 space-y-3">
       <input
-        v-model="userInput"
-        @keydown="handleKeydown"
+        v-for="(_, index) in inputs"
+        :key="index"
+        :ref="el => { inputEls[index] = el }"
+        v-model="inputs[index]"
+        @keydown="handleKeydown($event, index)"
         :disabled="answered"
         type="text"
         autocapitalize="off"
         autocomplete="off"
-        :placeholder="showHint ? exercise.hint : 'Type your answer...'"
+        autocorrect="off"
+        spellcheck="false"
+        :placeholder="placeholder(index)"
         class="w-full bg-dark-800 border-2 border-dark-600 rounded-2xl px-4 py-3 text-white
                focus:border-primary-500 focus:outline-none transition-colors
                disabled:opacity-60"
@@ -85,7 +125,7 @@ const parts = computed(() => {
     <button
       v-if="!answered"
       @click="checkAnswer"
-      :disabled="!userInput.trim()"
+      :disabled="!canCheck"
       class="btn-primary w-full mb-4"
     >
       Check

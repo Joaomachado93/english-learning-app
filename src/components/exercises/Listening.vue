@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { sameAnswer } from '../../utils/answers.js'
 
 const props = defineProps({
   exercise: { type: Object, required: true }
@@ -43,14 +44,6 @@ function speak(rate = 1) {
   speechSynthesis.speak(utterance)
 }
 
-function normalize(str) {
-  return str.trim().toLowerCase()
-    .replace(/['']/g, "'")
-    .replace(/[""]/g, '"')
-    .replace(/\s+/g, ' ')
-    .replace(/[.,!?;:]+$/, '')
-}
-
 function checkAnswer() {
   if (!userInput.value.trim() || answered.value) return
   answered.value = true
@@ -59,7 +52,7 @@ function checkAnswer() {
     ? props.exercise.answer
     : [props.exercise.answer || props.exercise.sentence]
 
-  isCorrect.value = acceptedAnswers.some(a => normalize(a) === normalize(userInput.value))
+  isCorrect.value = acceptedAnswers.some(a => sameAnswer(userInput.value, a))
   emit('answer', isCorrect.value)
 }
 
@@ -115,6 +108,8 @@ function handleKeydown(e) {
         type="text"
         autocapitalize="off"
         autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
         placeholder="Type what you hear..."
         class="w-full bg-dark-800 border-2 border-dark-600 rounded-2xl px-4 py-3 text-white
                focus:border-primary-500 focus:outline-none transition-colors
