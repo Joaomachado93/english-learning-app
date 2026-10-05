@@ -19,3 +19,23 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Capacitor: the bridge finds plugins and their methods by reflection,
+# and the WebView calls into @JavascriptInterface methods by name.
+-keep class com.getcapacitor.** { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin public class * {
+    @com.getcapacitor.annotation.PermissionCallback <methods>;
+    @com.getcapacitor.annotation.ActivityCallback <methods>;
+    @com.getcapacitor.PluginMethod public <methods>;
+}
+-keep public class * extends com.getcapacitor.Plugin { *; }
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keepattributes *Annotation*, Signature, InnerClasses, EnclosingMethod
+
+# Community plugins used by the app (AdMob, speech recognition).
+-keep class com.getcapacitor.community.** { *; }
+
+# Cordova plugin bridge, if any Cordova plugins are added.
+-keep class org.apache.cordova.** { *; }
