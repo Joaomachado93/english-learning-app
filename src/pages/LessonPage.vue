@@ -56,7 +56,12 @@ function restartLesson() {
 }
 
 function goBack() {
-  router.back()
+  // Opened directly (daily challenge link, reload): there is no page to go back to.
+  if (window.history.state?.back) {
+    router.back()
+  } else {
+    router.replace(data.value ? `/module/${data.value.module.id}` : '/')
+  }
 }
 
 const scorePercentage = computed(() => Math.round((score.value / exercises.value.length) * 100))
@@ -177,5 +182,13 @@ const scoreColor = computed(() => {
         </transition>
       </div>
     </template>
+  </div>
+
+  <!-- Unknown lesson id (old link, removed lesson) -->
+  <div v-else class="min-h-screen bg-dark-900 flex flex-col items-center justify-center px-5 text-center safe-top">
+    <div class="text-5xl mb-4">🔎</div>
+    <h1 class="text-xl font-extrabold mb-2">Lesson not found</h1>
+    <p class="text-dark-400 mb-6">This lesson is no longer available.</p>
+    <router-link to="/" replace class="btn-primary">Back to home</router-link>
   </div>
 </template>

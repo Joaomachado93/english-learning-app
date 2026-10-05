@@ -1,5 +1,6 @@
 import { reactive, computed, watchEffect, watch } from 'vue'
 import { currentUser, saveProgressToCloud, loadProgressFromCloud } from '../firebase.js'
+import { dayKey, isStreakAlive, latestDay } from '../utils/streak.js'
 
 const STORAGE_KEY = 'english-app-progress'
 
@@ -64,7 +65,8 @@ watch(currentUser, async (user) => {
         // Take the higher values
         state.streak = Math.max(state.streak, cloudData.streak || 0)
         state.totalXP = Math.max(state.totalXP, cloudData.totalXP || 0)
-        state.lastPracticeDate = cloudData.lastPracticeDate || state.lastPracticeDate
+        // Keep whichever device practised most recently (the cloud copy can be older)
+        state.lastPracticeDate = latestDay(state.lastPracticeDate, cloudData.lastPracticeDate)
       }
       // Save merged state back to cloud
       saveToCloud()
@@ -92,12 +94,11 @@ export function useProgress() {
     const xpGained = score * 10 + (score === total ? 50 : 0)
     state.totalXP += xpGained
 
-    const today = new Date().toDateString()
+    const today = dayKey(0)
     if (state.lastPracticeDate !== today) {
-      const yesterday = new Date(Date.now() - 86400000).toDateString()
-      if (state.lastPracticeDate === yesterday) {
+      if (state.lastPracticeDate === dayKey(-1)) {
         state.streak++
-      } else if (state.lastPracticeDate !== today) {
+      } else {
         state.streak = 1
       }
       state.lastPracticeDate = today
@@ -151,7 +152,8 @@ export function useProgress() {
     saveToCloud()
   }
 
-  const streak = computed(() => state.streak)
+  // A streak only counts while it is alive: practised today or yesterday.
+  const streak = computed(() => (isStreakAlive(state.lastPracticeDate) ? state.streak : 0))
   const totalXP = computed(() => state.totalXP)
   const totalLessonsCompleted = computed(() =>
     Object.values(state.lessons).filter(l => l.completed).length
